@@ -1,0 +1,198 @@
+---
+title: "EDA futbol"
+author: "Sofía Vigara"
+date: "2024-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+```
+
+# EDA
+
+## Cargar los datos 
+```{r}
+library(readxl)
+
+base <- read_excel("C:/Users/vigar/OneDrive/Escritorio/Eye 4º/TFG/Trabajo/datos.xlsx")
+View(base)
+```
+
+## EDA
+Información general sobre la base de datos.
+```{r}
+str(base)
+summary(base)
+
+for (columna in names(base)) {
+  tipo <- class(base[[columna]])
+  print(paste(columna, ":", tipo))
+}
+```
+
+Número de partidos jugador por temporada
+```{r}
+library(ggplot2)
+
+options(repr.plot.width=20, repr.plot.height=10)
+theme_set(theme_dark())
+
+ggplot(base, aes(x = Season, fill = Season)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 15),
+        axis.text.y = element_text(size = 15),
+        plot.title = element_text(size = 20, face = "bold")) +
+  labs(title = "Nº de partidos jugados por temporada") +
+  scale_fill_manual(values = rainbow(length(unique(base$Season)))) +
+  guides(fill=FALSE)
+
+```
+       
+       
+Este código utiliza la librería ggplot2 para crear un gráfico de barras que muestra el número total de partidos jugados en cada temporada. La función theme_dark() se utiliza para establecer el estilo oscuro del gráfico, y options(repr.plot.width=20, repr.plot.height=10) se usa para ajustar el tamaño del gráfico.          
+
+
+
+        
+Este código utilizará la función boxplot() para crear subgráficos de caja para cada tipo de gol (Full Time Home Goals, Full Time Away Goals, Half Time Home Goals, Half Time Away Goals) en una sola ventana gráfica. Cada subgráfico mostrará la distribución de goles correspondiente. 
+
+Máximo de pártidos jugados en un dia 
+```{r}
+# Calcular el número de partidos jugados para cada fecha
+data1 <- as.data.frame(table(base$Date))
+
+# Renombrar las columnas
+names(data1) <- c("Date", "Number of Matches Played")
+
+# Encontrar el número máximo de partidos jugados
+max_matches <- max(data1$`Number of Matches Played`)
+max_date <- subset(data1, `Number of Matches Played` == max_matches)$Date
+
+# Imprimir la fecha y el número de partidos
+cat("Fecha con el máximo número de partidos jugados:", max_date, "\n")
+cat("Número máximo de partidos jugados en una fecha:", max_matches, "\n")
+
+```
+
+Distribución de goles del equipo local
+```{r}
+library(ggplot2)
+
+options(repr.plot.width=15, repr.plot.height=8)
+
+ggplot(base, aes(x = FTHG)) +
+  geom_bar(fill = "#FF69B4") + 
+  labs(title = "Distribución de los goles equipo local", x = "Número de goles", y = "Recuento") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 20),
+        axis.title.x = element_text(size = 16), 
+    axis.title.y = element_text(size = 16)
+  )
+
+
+```
+       
+Distribución goles equipo visitante   
+```{r}
+library(ggplot2)
+
+options(repr.plot.width=15, repr.plot.height=8)
+
+ggplot(base, aes(x = FTAG)) +
+  geom_bar(fill = "#FF69B4") + 
+  labs(title = "Distribución de Goles del Equipo Visitante", x = "Número de Goles", y = "Recuento") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 20), 
+        axis.title.x = element_text(size = 16), 
+    axis.title.y = element_text(size = 16)
+  )
+
+```
+
+
+
+         
+Total goles local y visitante
+```{r}
+(total_goles_local <- sum(base$FTHG))
+
+(total_goles_visitante <- sum(base$FTAG))
+
+(total_goals = total_goles_local + total_goles_visitante)
+```
+
+
+
+```{r}
+library(dplyr)
+library(plotly)
+
+# número total de victorias para cada equipo
+victoria_equipos <- base %>%
+  group_by(Team = ifelse(FTR == 'H', HomeTeam, ifelse(FTR == 'A', AwayTeam, NA))) %>%
+  summarise(Number_of_Wins = n()) %>%
+  arrange(desc(Number_of_Wins)) %>%
+  mutate(Team = factor(Team, levels = rev(Team))) %>% 
+  top_n(20)
+
+# Crear gráfico de barras con plotly
+fig <- plot_ly(victoria_equipos, x = ~Team, y = ~Number_of_Wins, type = "bar",
+               marker = list(color = '#FF69B4')) %>%
+  layout(title = "Victorias para cada equipo", 
+         xaxis = list(title = "Equipo"), 
+         yaxis = list(title = "Número de victorias"))
+
+# Mostrar gráfico
+fig
+
+
+# Calculando el porcentaje de victorias para cada equipo
+victoria_equipos <- victoria_equipos %>%
+  mutate(Percentage_of_Wins = (Number_of_Wins / sum(Number_of_Wins)) * 100)
+
+cat("El Real Madrid tiene un porcentaje de victorias del", round(victoria_equipos$Percentage_of_Wins[1], 2), "%.\n")
+cat("El Barcelona tiene un porcentaje de victorias del", round(victoria_equipos$Percentage_of_Wins[2], 2), "%.\n")
+cat("El Atlético de Madrid tiene un porcentaje de victorias del", round(victoria_equipos$Percentage_of_Wins[3], 2), "%.\n")
+
+```
+
+
+```{r}
+# Calcular la frecuencia de cada combinación de goles
+frecuencias <- table(base$FTHG, base$FTAG)
+
+# Convertir la tabla de frecuencias en un dataframe
+frecuencias_df <- as.data.frame.table(frecuencias)
+names(frecuencias_df) <- c("FTHG", "FTAG", "Freq")
+
+# Ver las primeras filas del dataframe de frecuencias
+head(frecuencias_df)
+
+
+# Cargar la biblioteca necesaria
+library(ggplot2)
+
+# Suponiendo que ya tienes tu dataframe de frecuencias_df con las columnas FTHG, FTAG y Freq
+
+# Convertir las columnas FTHG y FTAG en números
+frecuencias_df$FTHG <- as.numeric(as.character(frecuencias_df$FTHG))
+frecuencias_df$FTAG <- as.numeric(as.character(frecuencias_df$FTAG))
+
+# Crear el gráfico de burbujas con paleta de colores rosas y naranjas
+ggplot(frecuencias_df, aes(x = FTHG, y = FTAG, size = Freq, fill = Freq)) +
+  geom_point(alpha = 0.7, shape = 21) +  # Añadir puntos con transparencia y borde
+  scale_size_continuous(range = c(2, 10)) +  # Establecer el rango de tamaño de las burbujas
+  scale_fill_gradient(low = '#FFA07A', high = "#FF69B4") +  # Definir paleta de colores
+  labs(title = "Goles Local vs Visitante",
+       x = "Goles Local (FTHG)",
+       y = "Goles Visitante (FTAG)",
+       size = "Frecuencia",
+       fill = "Frecuencia") +  # Etiquetas de los ejes y tamaño
+  scale_x_continuous(breaks = seq(0, max(frecuencias_df$FTHG), by = 1)) +  # Establecer el paso de los ejes x
+  scale_y_continuous(breaks = seq(0, max(frecuencias_df$FTAG), by = 1)) +  # Establecer el paso de los ejes y
+  xlim(0, max(frecuencias_df$FTHG)) +  # Establecer los límites del eje x
+  ylim(0, max(frecuencias_df$FTAG))    # Establecer los límites del eje y
+
+```
+
